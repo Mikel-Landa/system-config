@@ -23,27 +23,5 @@
     name: niri
     state: present
   when:
-    - ansible_pkg_mgr == 'pacman'
     - distro_name == 'archlinux'
     - has_display | bool
-
-- name: Create niri config directory
-  ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/niri"
-    state: directory
-    mode: '0755'
-  when:
-    - distro_name == 'archlinux'
-    - has_display | bool
-
-- name: Copy niri config files
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/{{ item }}"
-    dest: "{{ ansible_user_dir }}/.config/niri/{{ item }}"
-    mode: '0644'
-  loop: "{{ niri_config_files | default([]) }}"
-  when:
-    - distro_name == 'archlinux'
-    - has_display | bool
-    - niri_config_files is defined
-

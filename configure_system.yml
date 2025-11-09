@@ -36,6 +36,7 @@
 
   roles:
     - common
+    - paru
     - fonts
     - docker
     - go

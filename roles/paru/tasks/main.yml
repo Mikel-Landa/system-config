@@ -1,0 +1,58 @@
+---
+- name: Check if paru is already installed
+  ansible.builtin.stat:
+    path: /usr/bin/paru
+  register: paru_installed
+  failed_when: false
+  changed_when: false
+
+- name: Install base-devel and git (required for building AUR packages)
+  become: true
+  community.general.pacman:
+    name:
+      - base-devel
+      - git
+    state: present
+  when:
+    - distro_name == 'archlinux'
+    - not paru_installed.stat.exists
+
+- name: Create temporary directory for building paru
+  ansible.builtin.file:
+    path: /tmp/paru-build
+    state: directory
+    mode: '0755'
+  when:
+    - distro_name == 'archlinux'
+    - not paru_installed.stat.exists
+
+- name: Clone paru repository
+  ansible.builtin.git:
+    repo: https://aur.archlinux.org/paru.git
+    dest: /tmp/paru-build/paru
+    version: HEAD
+  when:
+    - distro_name == 'archlinux'
+    - not paru_installed.stat.exists
+
+- name: Build and install paru
+  become: true
+  ansible.builtin.shell: |
+    cd /tmp/paru-build/paru
+    sudo -u {{ ansible_user }} makepkg -si --noconfirm
+  args:
+    creates: /usr/bin/paru
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+  when:
+    - distro_name == 'archlinux'
+    - not paru_installed.stat.exists
+
+- name: Clean up temporary build directory
+  ansible.builtin.file:
+    path: /tmp/paru-build
+    state: absent
+  when:
+    - distro_name == 'archlinux'
+    - not paru_installed.stat.exists
+
