@@ -1,8 +1,8 @@
 ---
 config_dir: "{{ ansible_user_dir }}/.config"
-dotfiles_dir: "{{ ansible_user_dir }}/.dotfiles"
+dotfiles_dir: "{{ ansible_user_dir }}/.system-config"
 
-dotfiles_repo: "https://github.com/Mikel-Landa/dotfiles.git"
+dotfiles_repo: "https://github.com/Mikel-Landa/system-config.git"
 
 ansible_user: "mikel"
 
