@@ -1,0 +1,44 @@
+---
+- name: Check if rustup is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.cargo/bin/rustup"
+  register: rustup_installed
+
+- name: Install rustup
+  ansible.builtin.shell: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+  args:
+    creates: "{{ ansible_user_dir }}/.cargo/bin/rustup"
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+  when: not rustup_installed.stat.exists
+
+- name: Check if cargo-binstall is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.cargo/bin/cargo-binstall"
+  register: cargo_binstall_installed
+
+- name: Source cargo environment and install cargo-binstall
+  ansible.builtin.shell: |
+    . "$HOME/.cargo/env"
+    cargo install cargo-binstall
+  args:
+    creates: "{{ ansible_user_dir }}/.cargo/bin/cargo-binstall"
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+    PATH: "{{ ansible_user_dir }}/.cargo/bin:{{ ansible_env.PATH }}"
+  when: not cargo_binstall_installed.stat.exists
+
+- name: Install rust packages via cargo-binstall
+  ansible.builtin.shell: |
+    . "$HOME/.cargo/env"
+    cargo binstall -y {{ item.package }}
+  args:
+    creates: "{{ ansible_user_dir }}/.cargo/bin/{{ item.binary }}"
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+    PATH: "{{ ansible_user_dir }}/.cargo/bin:{{ ansible_env.PATH }}"
+  loop: "{{ rust.packages }}"
+  loop_control:
+    label: "{{ item.package }}"
+  when: rust.packages is defined

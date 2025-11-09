@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+
+# Auto terminate the program when a command fails.
+set -e
+
+# Colors & Emoji
+NC='\033[0m'
+LGREEN='\033[01;32m'
+LRED='\033[01;31m'
+LBLACK='\033[01;30m'
+ORANGE='\033[38;5;214m'
+SEA="\\033[38;5;49m"
+TADA="${ORANGE}\xF0\x9F\x8E\x89${NC}"
+ARROW="${SEA}\xE2\x96\xB6${NC}"
+OVERWRITE='\e[1A\e[K'
+
+LOG_FILE="$HOME/.system-config.log"
+DOTFILES_DIR="$HOME/.system-config"
+SSH_DIR="$HOME/.ssh"
+FIRST_RUN_FILE="$HOME/.system-config_first_run_check"
+
+USER_PRIMARY_GROUP="$(id -gn $USER)"
+
+function _info {
+  # First, the INFO is going to be undefined which will result in empty string
+  # and it will print with [ ], but secondly the INFO variable is going to be
+  # defined and it will print with [✓].
+  [[ -n $INFO ]] && printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${INFO}\n"
+  INFO=$1
+  printf "${LBLACK} [ ]  ${INFO} \n${NC}\n"
+}
+
+function _info_done {
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${INFO}\n"
+  INFO=""
+}
+
+function _error {
+  printf "${OVERWRITE}${LRED} [X]  ${1}${LRED}\n"
+  # This will trigger the termination of the program with the `set -e` flag we
+  # have set up at the top.
+  return 1
+}
+
+function _cmd {
+  # create a log file if it doesn't exist.
+  [[ -f $LOG_FILE ]] || touch $LOG_FILE
+
+  echo "Run command: $1" >>$LOG_FILE
+
+  local TMP_LOG
+  TMP_LOG=$(mktemp)
+
+  if eval "$1" 2>"$TMP_LOG" 1>/dev/null; then
+    # Optional: You could append success output to the log file here if needed
+    rm "$TMP_LOG"
+    return 0
+  fi
+
+  _error "Failed to run command: $1"
+  while IFS= read -r line; do
+    printf "   >> ${line}\n"
+  done <"$TMP_LOG"
+
+  cat "$TMP_LOG" >>"$LOG_FILE"
+  rm "$TMP_LOG"
+
+  # This will trigger the termination of the program with the `set -e` flag we
+  # have set up at the top.
+  return 1
+}
+
+function detect_os {
+  [[ -f /etc/os-release ]] && source /etc/os-release && echo "$ID" || echo "unknown"
+}
+
+function install_ansible {
+  case $1 in
+  arch)
+    _cmd "sudo pacman -S --noconfirm ansible"
+    ;;
+  ubuntu)
+    _cmd "sudo apt-get update"
+    _cmd "sudo apt-get install -y software-properties-common"
+    _cmd "sudo add-apt-repository --yes --update ppa:ansible/ansible"
+    _cmd "sudo apt-get install -y ansible"
+    ;;
+  *)
+    _error "Unsupported OS: $1"
+    _info "Supported OS: arch, ubuntu"
+    _info_done
+    ;;
+  esac
+}
+
+function setup_ssh_key {
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR"
+
+  if ! [[ -f "$SSH_DIR/ansible_key" ]]; then
+    _info "Generating Ansible SSH key"
+    _cmd "ssh-keygen -t ed25519 -f '$SSH_DIR/ansible_key' -N '' -C '$USER@$(hostname)'"
+    _info_done
+  else
+    _info "Ansible SSH key already exists"
+    _info_done
+  fi
+}
+
+function clone_dotfiles {
+  if [[ -d "$DOTFILES_DIR" ]]; then
+    # echo "hi"
+    # # TODO: uncomment these
+    _info "Dotfiles already exists. Updating the repo"
+    _cmd "git -C $DOTFILES_DIR pull --quiet"
+    _info_done
+  else
+    _info "Cloning @Mikel-Landa/system-config repo"
+    _cmd "git clone --quiet --branch main  https://github.com/Mikel-Landa/system-config.git $DOTFILES_DIR"
+    _cmd "chown -R $USER:$USER_PRIMARY_GROUP $DOTFILES_DIR"
+    _info_done
+  fi
+}
+
+# Main execution
+os=$(detect_os)
+_info "Detected OS: $os"
+
+_info "Installing Ansible"
+install_ansible "$os"
+_info_done
+
+setup_ssh_key
+clone_dotfiles
+
+pushd "$DOTFILES_DIR" >/dev/null 2>&1
+_info "Running Ansible playbook"
+
+# I'm hardcoding the limit to 'local' here as that's the whole purpose. Anytime
+# you run a script in another machine, then local will point to that localhost
+# of the machine.
+ansible-playbook "$DOTFILES_DIR/main.yml" --limit local --ask-become-pass
+
+_info_done
+popd >/dev/null 2>&1
+
+_info "Everything ran successfully! $TADA"
+
+if ! [[ -f "$FIRST_RUN_FILE" ]]; then
+  printf "\n"
+  echo -e "${ARROW} ${CYAN}First run detected!${NC}"
+  echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
+  touch "$FIRST_RUN_FILE"
+fi

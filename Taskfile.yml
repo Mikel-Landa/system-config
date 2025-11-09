@@ -1,0 +1,29 @@
+---
+version: "3"
+
+tasks:
+  docker_build:
+    desc: Build the dotfiles Docker image to a container
+    cmds:
+      - docker build -t Mikel-Landa/system-config:latest --no-cache .
+
+  docker_run:
+    desc: Run the dotfiles Docker container interactively
+    cmds:
+      - docker run -it Mikel-Landa/system-config:latest /bin/bash
+
+  docker_build_and_run:
+    desc: Build the Docker image and then run the container
+    cmds:
+      - task: docker_build
+      - task: docker_run
+
+  local:
+    desc: Run ansible locally
+    cmds:
+      - ansible-playbook main.yml --limit local --ask-become-pass
+
+  ubuntu_homelabs:
+    desc: Run ansible to set up system and dotfiles on ubuntu homelabs
+    cmds:
+      - ansible-playbook main.yml --limit ubuntu_homelabs

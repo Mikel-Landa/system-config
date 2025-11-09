@@ -1,0 +1,26 @@
+---
+- name: Check if mise is installed
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.local/bin/mise"
+  register: mise_installed
+
+- name: Install mise
+  ansible.builtin.shell: |
+    curl https://mise.run | sh
+  args:
+    creates: "{{ ansible_user_dir }}/.local/bin/mise"
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+  when: not mise_installed.stat.exists
+
+- name: Install tools via mise
+  ansible.builtin.shell: |
+    ~/.local/bin/mise use -g {{ item }}
+  environment:
+    HOME: "{{ ansible_user_dir }}"
+    PATH: "{{ ansible_user_dir }}/.local/bin:{{ ansible_env.PATH }}"
+  loop: "{{ mise.tools }}"
+  loop_control:
+    label: "{{ item }}"
+  when: mise.tools is defined
+

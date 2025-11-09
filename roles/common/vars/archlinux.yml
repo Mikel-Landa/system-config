@@ -1,0 +1,30 @@
+---
+common_packages:
+  - git
+  - eza
+  - jq
+  - nodejs
+  - npm
+  - xsel
+  - curl
+  - wget
+  - zip
+  - neovim
+  - python
+  - python-pip
+  - btop
+  - sshfs
+  - grex
+  - asciinema
+  - trash-cli
+  - aria2
+  - zsh
+  - zsh-autosuggestions
+  - zsh-syntax-highlighting
+  - ripgrep
+  - gnupg
+  - pkgconf
+  - openssl
+  - base-devel
+  - sshuttle
+  - tmux

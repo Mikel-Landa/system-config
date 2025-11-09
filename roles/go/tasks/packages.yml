@@ -1,0 +1,18 @@
+---
+- name: Install go packages
+  ansible.builtin.command:
+    cmd: "go install {{ item.package }}"
+    creates: "{{ ansible_user_dir }}/go/bin/{{ item.cmd }}"
+  register: go_install
+  changed_when: go_install.rc != 0
+  loop_control:
+    label: "{{ item.package }}"
+  loop: "{{ go.packages }}"
+  when: go.packages is defined
+
+- name: Install lazygit via go
+  ansible.builtin.command:
+    cmd: "go install github.com/jesseduffield/lazygit@latest"
+    creates: "{{ ansible_user_dir }}/go/bin/lazygit"
+  environment:
+    PATH: "{{ ansible_user_dir }}/go/bin:{{ ansible_env.PATH }}"
